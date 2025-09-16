@@ -52,5 +52,15 @@
   },
   "engines": {
     "node": "20.x"
+  },
+  "pnpm": {
+    "allowedBuiltDependencies": [
+      "@prisma/engines",
+      "@prisma/client",
+      "sharp",
+      "puppeteer",
+      "@tailwindcss/oxide",
+      "esbuild"
+    ]
   }
 }
