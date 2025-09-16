@@ -1,26 +1,16 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* your custom tokens/utilities can stay below */
+html, body { background: #fafafa; color: #0b0b0c; }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+.container-page { max-width: 72rem; margin-left:auto; margin-right:auto; padding: 0 1rem; }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+.card { background:#fff; border:1px solid #e5e7eb; border-radius:1rem; box-shadow:0 8px 24px rgba(0,0,0,.08); transition: box-shadow .2s; }
+.card:hover { box-shadow:0 12px 28px rgba(0,0,0,.12); }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
+.btn { display:inline-flex; align-items:center; justify-content:center; border-radius:.75rem; border:1px solid #d1d5db; font-size:.875rem; font-weight:500; padding:.5rem .75rem; transition:background-color .15s; }
+.btn-primary { background:#1f6feb; color:#fff; border-color:transparent; }
+.btn-primary:hover { background:#1558c7; }
+.btn-outline { background:#fff; }
+.btn-outline:hover { background:#f9fafb; }
+

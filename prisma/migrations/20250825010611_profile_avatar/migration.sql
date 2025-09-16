@@ -1,0 +1,1 @@
+-- placeholder for 20250825010611_profile_avatar (already applied in DB)

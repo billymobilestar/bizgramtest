@@ -1,0 +1,384 @@
+generator client {
+  provider = "prisma-client-js"
+    directUrl = env("DIRECT_URL")    // direct for migrations
+
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  //shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+model User {
+  id                 String             @id @default(cuid())
+  email              String             @unique
+  createdAt          DateTime           @default(now())
+  profile            Profile?
+  comments           Comment[]          @relation("UserComments")
+  notifications      Notification[]
+  notificationsActed Notification[]     @relation("NotificationActor")
+  notificationPref   NotificationPref?
+  notificationMutes  NotificationMute[]
+}
+
+model Profile {
+  id                String               @id @default(cuid())
+  userId            String               @unique
+  handle            String               @unique
+  displayName       String
+  profession        String
+  bio               String?              @db.VarChar(280)
+  city              String?
+  region            String?
+  servicesEnabled   Boolean              @default(true)
+  acceptsBriefs     Boolean              @default(false)
+  acceptsDMs        Boolean              @default(true)
+  showCityPublicly  Boolean              @default(true)
+  showRatesPublicly Boolean              @default(false)
+  currentWorkCity   String?
+  currentWorkUntil  DateTime?
+  verificationLevel VerificationLevel    @default(NONE)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  avatarUrl         String?              @db.VarChar(500)
+  accountType       AccountType          @default(PERSONAL)
+  portfolioUrl      String?              @db.VarChar(500)
+  professions       String[]             @default([])
+  availability      AvailabilityWindow[]
+  BriefTarget       BriefTarget[]
+  links             ExternalLink[]
+  following         Follow[]             @relation("follows_follower")
+  followers         Follow[]             @relation("follows_following")
+  posts             Post[]
+  PostCollaborator  PostCollaborator[]
+  user              User                 @relation(fields: [userId], references: [id])
+  Proposal          Proposal[]
+  services          Service[]
+  areas             ServiceArea[]
+  projectMembers    ProjectMember[]      @relation("ProfileMembers")
+}
+
+model Service {
+  id          String  @id @default(cuid())
+  profileId   String
+  name        String
+  priceMin    Int?
+  priceMax    Int?
+  currency    String  @default("CAD")
+  unit        String
+  description String? @db.VarChar(500)
+  profile     Profile @relation(fields: [profileId], references: [id])
+}
+
+model ExternalLink {
+  id        String  @id @default(cuid())
+  profileId String
+  type      String
+  url       String
+  profile   Profile @relation(fields: [profileId], references: [id])
+}
+
+model ServiceArea {
+  id        String  @id @default(cuid())
+  profileId String
+  city      String
+  region    String
+  lat       Float
+  lng       Float
+  radiusKm  Float   @default(50)
+  profile   Profile @relation(fields: [profileId], references: [id])
+}
+
+model AvailabilityWindow {
+  id        String   @id @default(cuid())
+  profileId String
+  start     DateTime
+  end       DateTime
+  city      String?
+  note      String?
+  profile   Profile  @relation(fields: [profileId], references: [id])
+}
+
+model Post {
+  id              String             @id @default(cuid())
+  authorProfileId String
+  caption         String?            @db.VarChar(1000)
+  tags            String[]
+  createdAt       DateTime           @default(now())
+  Comment         Comment[]
+  likes           Like[]
+  author          Profile            @relation(fields: [authorProfileId], references: [id])
+  assets          PostAsset[]
+  collaborators   PostCollaborator[]
+}
+
+model PostAsset {
+  id            String  @id @default(cuid())
+  postId        String
+  url           String
+  derivativeUrl String?
+  order         Int     @default(0)
+  altText       String?
+  post          Post    @relation(fields: [postId], references: [id])
+}
+
+model PostCollaborator {
+  postId    String
+  profileId String
+  role      String
+  post      Post    @relation(fields: [postId], references: [id])
+  profile   Profile @relation(fields: [profileId], references: [id])
+
+  @@id([postId, profileId])
+}
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    Profile  @relation("follows_follower", fields: [followerId], references: [id])
+  following   Profile  @relation("follows_following", fields: [followingId], references: [id])
+
+  @@id([followerId, followingId])
+}
+
+model Like {
+  userId    String
+  postId    String
+  createdAt DateTime @default(now())
+  Post      Post     @relation(fields: [postId], references: [id])
+
+  @@id([userId, postId])
+}
+
+model SavedList {
+  id             String      @id @default(cuid())
+  userId         String
+  name           String
+  createdAt      DateTime    @default(now())
+  kind           SavedKind   @default(POSTS)
+  items          SavedItem[]
+  seededProjects Project[]   @relation("SeedList")
+}
+
+model SavedItem {
+  id        String    @id @default(cuid())
+  listId    String
+  postId    String?
+  profileId String?
+  createdAt DateTime  @default(now())
+  list      SavedList @relation(fields: [listId], references: [id])
+
+  @@unique([listId, postId], map: "uniq_list_post")
+  @@unique([listId, profileId], map: "uniq_list_profile")
+}
+
+model Thread {
+  id             String    @id @default(cuid())
+  participantIds String[]
+  lastMessageAt  DateTime?
+  messages       Message[]
+}
+
+model Message {
+  id         String   @id @default(cuid())
+  threadId   String
+  fromUserId String
+  text       String
+  createdAt  DateTime @default(now())
+  thread     Thread   @relation(fields: [threadId], references: [id])
+}
+
+model Brief {
+  id              String        @id @default(cuid())
+  createdByUserId String
+  title           String
+  description     String
+  budgetMin       Int?
+  budgetMax       Int?
+  currency        String        @default("CAD")
+  city            String?
+  region          String?
+  status          String        @default("open")
+  createdAt       DateTime      @default(now())
+  targets         BriefTarget[]
+  proposals       Proposal[]
+}
+
+model BriefTarget {
+  briefId   String
+  profileId String
+  invited   Boolean @default(false)
+  brief     Brief   @relation(fields: [briefId], references: [id])
+  profile   Profile @relation(fields: [profileId], references: [id])
+
+  @@id([briefId, profileId])
+}
+
+model Proposal {
+  id        String   @id @default(cuid())
+  briefId   String
+  profileId String
+  message   String
+  price     Int?
+  currency  String   @default("CAD")
+  status    String   @default("submitted")
+  createdAt DateTime @default(now())
+  brief     Brief    @relation(fields: [briefId], references: [id])
+  profile   Profile  @relation(fields: [profileId], references: [id])
+}
+
+model Report {
+  id             String   @id @default(cuid())
+  reporterUserId String
+  targetType     String
+  targetId       String
+  reason         String
+  status         String   @default("open")
+  createdAt      DateTime @default(now())
+}
+
+model Comment {
+  id           String   @id @default(cuid())
+  postId       String
+  authorUserId String
+  text         String   @db.VarChar(1000)
+  createdAt    DateTime @default(now())
+  post         Post     @relation(fields: [postId], references: [id])
+  author       User     @relation("UserComments", fields: [authorUserId], references: [id])
+
+  @@index([postId, createdAt])
+}
+
+enum AccountType {
+  PERSONAL
+  COMPANY
+}
+
+enum VerificationLevel {
+  NONE
+  EMAIL
+  DOMAIN
+  BUSINESS_ID
+}
+
+enum SavedKind {
+  POSTS
+  PEOPLE
+}
+
+// --- New ---
+model Project {
+  id          String   @id @default(cuid())
+  ownerUserId String
+  name        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // 👇 match the relation name above
+  fromListId String?
+  fromList   SavedList? @relation("SeedList", fields: [fromListId], references: [id])
+
+  shootDate DateTime?
+  crewCall  DateTime?
+  shootCall DateTime?
+  details   Json?
+
+  members ProjectMember[]
+
+  @@index([ownerUserId])
+}
+
+model ProjectMember {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id])
+
+  profileId    String?
+  profile      Profile? @relation("ProfileMembers", fields: [profileId], references: [id])
+  externalName String?
+  email        String?
+  phone        String?
+
+  department String?
+  role       String?
+  callTime   DateTime?
+  confirmed  Boolean   @default(false)
+  notes      String?
+  createdAt  DateTime  @default(now())
+
+  @@index([projectId])
+  @@index([profileId])
+}
+
+enum NotificationLevel {
+  INFO
+  ACTIONABLE
+  CRITICAL
+}
+
+enum NotificationType {
+  MESSAGE
+  MENTION
+  FOLLOW
+  COMMENT
+  LIKE
+  CALLSHEET_PUBLISHED
+  CALLTIME_CHANGED
+  SCHEDULE_UPDATED
+  PROJECT
+  SYSTEM
+}
+
+model Notification {
+  id          String            @id @default(cuid())
+  userId      String
+  type        NotificationType
+  level       NotificationLevel @default(INFO)
+  title       String?
+  body        String?
+  isRead      Boolean           @default(false)
+  readAt      DateTime?
+  createdAt   DateTime          @default(now())
+  contextType String?
+  contextId   String?
+  actorUserId String?
+  data        Json?
+
+  user  User  @relation(fields: [userId], references: [id])
+  actor User? @relation("NotificationActor", fields: [actorUserId], references: [id])
+
+  @@index([userId, isRead, createdAt])
+  @@index([contextType, contextId, userId])
+}
+
+enum NotificationDigest {
+  off
+  daily
+  weekly
+}
+
+model NotificationMute {
+  userId      String
+  contextType String
+  contextId   String
+  until       DateTime?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@id([userId, contextType, contextId])
+  @@index([userId])
+}
+
+model NotificationPref {
+  userId       String             @id
+  emailEnabled Boolean            @default(true)
+  digest       NotificationDigest @default(off)
+  quietStart   String?
+  quietEnd     String?
+  categories   Json?
+  updatedAt    DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}

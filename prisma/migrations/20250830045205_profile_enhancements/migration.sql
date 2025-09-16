@@ -1,0 +1,1 @@
+-- placeholder for 20250830045205_profile_enhancements (already applied in DB)

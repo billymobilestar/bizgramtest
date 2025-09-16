@@ -1,0 +1,6 @@
+import { projectsRouter } from './projects'
+// ...
+export const appRouter = router({
+  // ...
+  projects: projectsRouter,
+})

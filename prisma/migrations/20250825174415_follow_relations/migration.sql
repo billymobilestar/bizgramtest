@@ -1,0 +1,1 @@
+-- placeholder for 20250825174415_follow_relations (already applied in DB)
