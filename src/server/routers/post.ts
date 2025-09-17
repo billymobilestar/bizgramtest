@@ -1,7 +1,7 @@
-// src/server/routers/post.ts
+import { prisma } from '@/server/utils/prisma'
+import { ensureDbUser } from '@/server/utils/ensureDbUser'
 import { z } from 'zod'
 import { router, publicProcedure, protectedProcedure } from '@/server/trpc'
-import { prisma } from '@/server/utils/prisma'
 import { TRPCError } from '@trpc/server'
 import type { Prisma } from '@prisma/client'
 
@@ -32,6 +32,9 @@ const CreateInput = z.object({
 
 // Helpers
 async function ensureProfileFor(userId: string) {
+  // Satisfy FK: make sure the parent `User` row exists first (no-op if no `User` model)
+  await ensureDbUser(userId)
+
   let prof = await prisma.profile.findUnique({ where: { userId } })
   if (!prof) {
     const base = `user_${userId.slice(0, 6)}`
