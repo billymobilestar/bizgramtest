@@ -1,10 +1,11 @@
 // src/app/messages/MessageItem.tsx
 'use client'
 import PostModal from '@/app/components/PostModal'
+import Link from 'next/link'
+import { useMemo, useState } from 'react'
 
-import { useState } from 'react'
-
-type MsgPost = {
+// --- Message shapes ---
+export type MsgPost = {
   id: string
   kind: 'post'
   fromUserId: string
@@ -17,7 +18,7 @@ type MsgPost = {
   }
 }
 
-type MsgText = {
+export type MsgText = {
   id: string
   kind: 'text'
   fromUserId: string
@@ -25,17 +26,61 @@ type MsgText = {
   text: string
 }
 
-export default function MessageItem({ msg, isMe }:{ msg: MsgPost | MsgText; isMe: boolean }) {
+export type MsgImage = {
+  id: string
+  kind: 'image'
+  fromUserId: string
+  createdAt: string | Date
+  url: string
+  alt?: string | null
+}
+
+type Participant = { displayName: string; handle?: string; avatarUrl?: string | null }
+
+export default function MessageItem({
+  msg,
+  isMe,
+  participants,
+}: {
+  msg: MsgPost | MsgText | MsgImage
+  isMe: boolean
+  /** Optional map to resolve names from ids */
+  participants?: Record<string, Participant>
+}) {
   const [open, setOpen] = useState<string | null>(null)
 
+  // Resolve a human name for the sender
+  const senderName = useMemo(() => {
+    if (isMe) return 'You'
+    const p = participants?.[msg.fromUserId]
+    return p?.displayName ?? `User ${msg.fromUserId.slice(0, 6)}`
+  }, [isMe, msg.fromUserId, participants])
+
+  // helper: linkify plain text
+  function linkify(text: string) {
+    const urlRe = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi
+    const parts = text.split(urlRe)
+    return parts.map((part, i) => {
+      if (urlRe.test(part)) {
+        const href = part.startsWith('http') ? part : `https://${part}`
+        return (
+          <Link key={i} href={href} target="_blank" rel="noopener noreferrer" className="underline hover:opacity-80 break-words">
+            {part}
+          </Link>
+        )
+      }
+      return <span key={i}>{part}</span>
+    })
+  }
+
+  // POST share card
   if (msg.kind === 'post') {
     const p = msg.post
     return (
-      <>
+      <div className={isMe ? 'ml-auto max-w-[280px]' : 'max-w-[280px]'}>
+        <div className="mb-1 text-xs text-neutral-500">{senderName}</div>
         <div
-          className={`max-w-[260px] rounded-xl border overflow-hidden cursor-pointer ${
-            isMe ? 'ml-auto' : ''
-          }`}
+          className={`rounded-xl border overflow-hidden cursor-pointer ${isMe ? '' : ''}`}
           onClick={() => setOpen(p.id)}
           title="Open post"
         >
@@ -61,14 +106,40 @@ export default function MessageItem({ msg, isMe }:{ msg: MsgPost | MsgText; isMe
 
         {/* modal */}
         {open && <PostModal openId={open} onClose={() => setOpen(null)} />}
-      </>
+      </div>
     )
   }
 
-  // plain text bubble
+  // IMAGE bubble
+  if (msg.kind === 'image') {
+    return (
+      <div className={isMe ? 'ml-auto max-w-[280px]' : 'max-w-[280px]'}>
+        <div className="mb-1 text-xs text-neutral-500">{senderName}</div>
+        <a
+          href={(msg as MsgImage).url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`block overflow-hidden rounded-2xl border ${isMe ? '' : ''}`}
+          title="Open image"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={(msg as MsgImage).url}
+            alt={(msg as MsgImage).alt ?? ''}
+            className="w-full max-h-[360px] object-cover"
+          />
+        </a>
+      </div>
+    )
+  }
+
+  // TEXT bubble
   return (
-    <div className={`max-w-[70%] rounded-2xl px-3 py-2 border ${isMe ? 'ml-auto bg-gray-50' : 'bg-white'}`}>
-      {msg.text}
+    <div className={isMe ? 'ml-auto max-w-[70%]' : 'max-w-[70%]'}>
+      <div className="mb-1 text-xs text-neutral-500">{senderName}</div>
+      <div className={`rounded-2xl px-3 py-2 border ${isMe ? 'bg-gray-50' : 'bg-white'}`}>
+        {linkify((msg as MsgText).text)}
+      </div>
     </div>
   )
 }

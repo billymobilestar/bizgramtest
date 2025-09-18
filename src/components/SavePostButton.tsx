@@ -4,6 +4,7 @@ import { api } from '@/app/providers'
 
 export default function SavePostButton({ postId }: { postId: string }) {
   const [open, setOpen] = useState(false)
+  const utils = api.useUtils()
 
   // Lists of kind POSTS
   const listsQ = api.saved.myLists.useQuery({ kind: 'POSTS' }, { enabled: open, placeholderData: p => p })
@@ -11,7 +12,7 @@ export default function SavePostButton({ postId }: { postId: string }) {
   const membershipQ = api.saved.membershipForTarget.useQuery({ postId }, { enabled: open && !!postId, placeholderData: p => p })
 
   const add = api.saved.addToLists.useMutation({
-    onSuccess: () => api.useUtils().saved.myLists.invalidate().catch(() => {}),
+    onSuccess: () => utils.saved.myLists.invalidate().catch(() => {}),
   })
   const create = api.saved.createList.useMutation({
     onSuccess: () => listsQ.refetch().catch(() => {}),

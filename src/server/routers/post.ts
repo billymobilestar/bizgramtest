@@ -1,5 +1,5 @@
 import { prisma } from '@/server/utils/prisma'
-import { ensureDbUser } from '@/server/utils/ensureDbUser'
+import { ensureDbUser } from '../../server/utils/ensureDbUser'
 import { z } from 'zod'
 import { router, publicProcedure, protectedProcedure } from '@/server/trpc'
 import { TRPCError } from '@trpc/server'
@@ -28,6 +28,9 @@ const CreateInput = z.object({
   caption: z.string().max(1000).optional().nullable(),
   tags: z.array(z.string().min(1)).max(10).default([]),
   files: z.array(FileInput).min(1).max(10),
+  // NEW optional fields
+  location: z.string().max(160).optional().nullable(),
+  externalUrl: z.string().url().max(2048).optional().nullable(),
 })
 
 // Helpers
@@ -54,10 +57,13 @@ async function ensureProfileFor(userId: string) {
 async function createPostImpl(userId: string, input: z.infer<typeof CreateInput>) {
   const prof = await ensureProfileFor(userId)
   const post = await prisma.post.create({
-    data: {
+    data: ({
       authorProfileId: prof.id,
       caption: input.caption ?? null,
       tags: input.tags,
+      // These fields require an updated Prisma client (after migrate + generate)
+      ...(input.location != null ? { location: input.location } : {}),
+      ...(input.externalUrl != null ? { externalUrl: input.externalUrl } : {}),
       assets: {
         create: input.files.map((f) => ({
           url: f.url,
@@ -65,7 +71,7 @@ async function createPostImpl(userId: string, input: z.infer<typeof CreateInput>
           order: f.order ?? 0,
         })),
       },
-    },
+    }) as any,
     include: {
       assets: { orderBy: [{ order: 'asc' as const }] },
       author: { select: authorSelect },

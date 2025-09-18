@@ -27,7 +27,7 @@ export const projectsRouter = router({
     return prisma.project.findMany({
       where: { ownerUserId: ctx.userId! },
       orderBy: { createdAt: 'desc' },
-      select: { id: true, name: true, createdAt: true },
+      select: { id: true, name: true, createdAt: true, details: true },
     })
   }),
 
@@ -196,5 +196,22 @@ export const projectsRouter = router({
         where: { id: input.projectId },
         include: { members: membersInclude },
       })
+    }),
+
+  // Set cover image URL stored in Project.details JSON
+  setCover: protectedProcedure
+    .input(z.object({ id: z.string(), coverUrl: z.string().url() }))
+    .mutation(async ({ ctx, input }) => {
+      const p = await prisma.project.findUnique({
+        where: { id: input.id },
+        select: { ownerUserId: true, details: true },
+      })
+      if (!p || p.ownerUserId !== ctx.userId) throw new TRPCError({ code: 'FORBIDDEN' })
+      const nextDetails = { ...(p.details as any ?? {}), coverUrl: input.coverUrl }
+      await prisma.project.update({
+        where: { id: input.id },
+        data: { details: nextDetails },
+      })
+      return { id: input.id, coverUrl: input.coverUrl }
     }),
 })

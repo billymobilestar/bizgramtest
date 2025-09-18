@@ -1,40 +1,42 @@
-// src/app/providers.tsx
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { createTRPCReact, httpBatchLink } from '@trpc/react-query'
-import superjson from 'superjson'
-import type { AppRouter } from '@/server/routers/_app'
+import * as React from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { httpBatchLink } from '@trpc/client';
+import superjson from 'superjson';
+import { api } from '@/trpc/react';
 
-export const api = createTRPCReact<AppRouter>()
+// (Optional) keep compatibility so existing imports still work:
+//   import { api } from '@/app/providers'
+export { api } from '@/trpc/react';
 
 function getBaseUrl() {
-  if (typeof window !== 'undefined') return ''
-  return process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'
+  if (typeof window !== 'undefined') return '';
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return `http://localhost:${process.env.PORT ?? 3000}`;
 }
 
 export default function Providers({ children }: { children: React.ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient())
-  const [trpcClient] = useState(() =>
+  const [queryClient] = React.useState(() => new QueryClient());
+  const [trpcClient] = React.useState(() =>
     api.createClient({
       links: [
         httpBatchLink({
           url: `${getBaseUrl()}/api/trpc`,
-          transformer: superjson,                 // same as server
-          fetch: (url, opts) =>                  // send cookies for Clerk
-            fetch(url, { ...opts, credentials: 'include' }),
+          // keep data formats in sync with your server
+          transformer: superjson,
+          fetch: (url, opts) => fetch(url, { ...opts, credentials: 'include' }),
           headers() {
-            return { 'x-trpc-source': 'nextjs' }
+            return { 'x-trpc-source': 'nextjs' };
           },
         }),
       ],
-    })
-  )
+    }),
+  );
 
   return (
     <api.Provider client={trpcClient} queryClient={queryClient}>
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     </api.Provider>
-  )
+  );
 }

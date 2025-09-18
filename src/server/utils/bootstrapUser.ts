@@ -1,67 +1,67 @@
-// src/server/utils/bootstrapUser.ts
-import { auth, currentUser } from '@clerk/nextjs/server'
+import { currentUser } from '@clerk/nextjs/server'
 import { prisma } from '@/server/utils/prisma'
+import { ensureDbUser } from '@/server/utils/ensureDbUser'
+import { slugify } from './slugify'
 
-/**
- * Ensure there is a User and Profile row for the signed-in Clerk user.
- * Also keeps avatarUrl in Profile synced with Clerk's imageUrl.
- */
-export async function ensureUser(opts?: { id?: string }) {
-  const forcedId = opts?.id
-  const { userId: authUserId } = auth()
-  const userId = forcedId ?? authUserId
-  if (!userId) throw new Error('Not signed in')
+function emailLocal(email?: string | null) {
+  if (!email) return ''
+  const [local] = email.split('@')
+  return local || ''
+}
 
-  // Pull fresh data from Clerk
-  const u = await currentUser()
-  const email =
-    u?.primaryEmailAddress?.emailAddress ??
-    u?.emailAddresses?.[0]?.emailAddress ??
-    `user-${userId}@example.local`
-  const avatarUrl = u?.imageUrl || null
-  const displayName =
-    u?.fullName || u?.username || u?.firstName || 'Creator'
+async function uniqueHandle(base: string) {
+  let handle = slugify(base) || 'user'
+  handle = handle.replace(/^-+|-+$/g, '') || 'user'
+  let tryHandle = handle
+  for (let i = 0; i < 20; i++) {
+    const exists = await prisma.profile.findUnique({ where: { handle: tryHandle } })
+    if (!exists) return tryHandle
+    tryHandle = `${handle}${Math.floor(100 + Math.random() * 900)}`
+  }
+  return `${handle}${Date.now().toString().slice(-4)}`
+}
 
-  // Ensure User row (id is Clerk userId)
-  await prisma.user.upsert({
-    where: { id: userId },
-    create: { id: userId, email },
-    update: { email },
-  })
+export async function bootstrapUser() {
+  const user = await currentUser()
+  if (!user) return { ok: false, reason: 'no-user' as const }
+  // Ensure DB User exists to satisfy Profile.userId FK
+  await ensureDbUser(user.id)
 
-  // Ensure Profile row
-  let profile = await prisma.profile.findUnique({ where: { userId } })
+  const primaryEmail = user.emailAddresses?.find(e => e.id === user.primaryEmailAddressId)?.emailAddress
+    ?? user.emailAddresses?.[0]?.emailAddress
+    ?? null
+
+  // Ensure profile row exists
+  let profile = await prisma.profile.findUnique({ where: { userId: user.id } })
+
   if (!profile) {
-    // make a unique, friendly handle
-    const base =
-      (u?.username || email.split('@')[0])
-        .toLowerCase()
-        .replace(/[^a-z0-9_]/g, '_')
-        .slice(0, 20) || `user_${userId.slice(0, 6)}`
-    let handle = base
-    for (let i = 1; i <= 100; i++) {
-      const exists = await prisma.profile.findUnique({ where: { handle } })
-      if (!exists) break
-      handle = `${base}${i}`
-    }
+    const displayName =
+      [user.firstName, user.lastName].filter(Boolean).join(' ') ||
+      user.username ||
+      emailLocal(primaryEmail) ||
+      'New user'
+
+    const preferHandle =
+      user.username ||
+      emailLocal(primaryEmail) ||
+      displayName.replace(/\s+/g, '')
+
+    const handle = await uniqueHandle(preferHandle || 'user')
+
     profile = await prisma.profile.create({
       data: {
-        userId,
+        userId: user.id,
+        displayName,
         handle,
-        displayName: displayName || handle,
-        profession: 'Creator',
-        avatarUrl, // ← set on first create
+        avatarUrl: user.imageUrl ?? null,
+        profession: 'Creator',           // required string in schema
+        professions: [],                 // initialize multi-field if present
+        city: null,
+        region: null,
+        bio: null,
       },
     })
-  } else {
-    // ←——— THIS is the bit you asked about (keeps avatar in sync)
-    if (avatarUrl && profile.avatarUrl !== avatarUrl) {
-      profile = await prisma.profile.update({
-        where: { userId },
-        data: { avatarUrl },
-      })
-    }
   }
 
-  return profile
+  return { ok: true as const, profile }
 }

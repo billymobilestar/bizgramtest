@@ -15,6 +15,8 @@ import { publicProcedure, protectedProcedure } from '@/server/trpc'
 import { directoryRouter } from './directory'
 import { projectsRouter } from './projects'
 import { notificationRouter } from './notification'
+import { callsheetRouter } from '../../app/projects/callsheet'
+import { dashboardRouter } from './dashboard'
 
 
 export const appRouter = router({
@@ -30,7 +32,8 @@ export const appRouter = router({
   directory: directoryRouter,
   projects: projectsRouter,
   notification: notificationRouter,
-
+  callsheet: callsheetRouter,
+dashboard: dashboardRouter,
   post: postRouter,
   social: socialRouter,
   feed: feedRouter,

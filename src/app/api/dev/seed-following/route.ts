@@ -1,8 +1,8 @@
 // src/app/api/dev/seed-following/route.ts
 import { NextResponse } from 'next/server'
-import { auth, currentUser } from '@clerk/nextjs/server'
+import { auth } from '@clerk/nextjs/server'
 import { prisma } from '@/server/utils/prisma'
-import { ensureUser } from '@/server/utils/bootstrapUser'
+import { bootstrapUser } from '@/server/utils/bootstrapUser'
 
 const IMGS = [
   'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?q=80&w=1200&auto=format&fit=crop',
@@ -17,7 +17,7 @@ const { userId } = await auth()
   if (!userId) return NextResponse.json({ error: 'UNAUTHORIZED' }, { status: 401 })
 
   // Make sure current user + profile exists
-  await ensureUser()
+  await bootstrapUser()
   const me = await prisma.profile.findUnique({ where: { userId } })
   if (!me) return NextResponse.json({ error: 'No profile for user' }, { status: 400 })
 

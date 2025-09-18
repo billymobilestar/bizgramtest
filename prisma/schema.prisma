@@ -1,25 +1,23 @@
 generator client {
-  provider = "prisma-client-js"
-    directUrl = env("DIRECT_URL")    // direct for migrations
-
+  provider  = "prisma-client-js"
+  directUrl = env("DIRECT_URL")
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  //shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 model User {
   id                 String             @id @default(cuid())
   email              String             @unique
   createdAt          DateTime           @default(now())
-  profile            Profile?
   comments           Comment[]          @relation("UserComments")
-  notifications      Notification[]
   notificationsActed Notification[]     @relation("NotificationActor")
-  notificationPref   NotificationPref?
+  notifications      Notification[]
   notificationMutes  NotificationMute[]
+  notificationPref   NotificationPref?
+  profile            Profile?
 }
 
 model Profile {
@@ -53,10 +51,10 @@ model Profile {
   posts             Post[]
   PostCollaborator  PostCollaborator[]
   user              User                 @relation(fields: [userId], references: [id])
+  projectMembers    ProjectMember[]      @relation("ProfileMembers")
   Proposal          Proposal[]
   services          Service[]
   areas             ServiceArea[]
-  projectMembers    ProjectMember[]      @relation("ProfileMembers")
 }
 
 model Service {
@@ -106,6 +104,8 @@ model Post {
   caption         String?            @db.VarChar(1000)
   tags            String[]
   createdAt       DateTime           @default(now())
+  externalUrl     String?            @db.VarChar(2048)
+  location        String?            @db.VarChar(160)
   Comment         Comment[]
   likes           Like[]
   author          Profile            @relation(fields: [authorProfileId], references: [id])
@@ -158,8 +158,8 @@ model SavedList {
   name           String
   createdAt      DateTime    @default(now())
   kind           SavedKind   @default(POSTS)
-  items          SavedItem[]
   seededProjects Project[]   @relation("SeedList")
+  items          SavedItem[]
 }
 
 model SavedItem {
@@ -240,15 +240,106 @@ model Report {
 }
 
 model Comment {
-  id           String   @id @default(cuid())
+  id           String      @id @default(cuid())
   postId       String
   authorUserId String
-  text         String   @db.VarChar(1000)
-  createdAt    DateTime @default(now())
-  post         Post     @relation(fields: [postId], references: [id])
-  author       User     @relation("UserComments", fields: [authorUserId], references: [id])
+  text         String?     @db.VarChar(1000)
+  createdAt    DateTime    @default(now())
+  kind         CommentKind @default(TEXT)
+  stickerUrl   String?     @db.VarChar(2048)
+  author       User        @relation("UserComments", fields: [authorUserId], references: [id])
+  post         Post        @relation(fields: [postId], references: [id])
 
   @@index([postId, createdAt])
+}
+
+model Project {
+  id          String          @id @default(cuid())
+  ownerUserId String
+  name        String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  fromListId  String?
+  shootDate   DateTime?
+  crewCall    DateTime?
+  shootCall   DateTime?
+  details     Json?
+  fromList    SavedList?      @relation("SeedList", fields: [fromListId], references: [id])
+  members     ProjectMember[]
+  callsheets  Callsheet[]
+  coverUrl    String?
+  // Back-relation to DashboardCallsheet
+  dashboardLinks DashboardCallsheet[] @relation("ProjectDashboardLinks")
+
+  @@index([ownerUserId])
+}
+
+model ProjectMember {
+  id           String    @id @default(cuid())
+  projectId    String
+  profileId    String?
+  externalName String?
+  email        String?
+  phone        String?
+  department   String?
+  role         String?
+  callTime     DateTime?
+  confirmed    Boolean   @default(false)
+  notes        String?
+  createdAt    DateTime  @default(now())
+  profile      Profile?  @relation("ProfileMembers", fields: [profileId], references: [id])
+  project      Project   @relation(fields: [projectId], references: [id])
+
+  @@index([projectId])
+  @@index([profileId])
+}
+
+model Notification {
+  id          String            @id @default(cuid())
+  userId      String
+  type        NotificationType
+  level       NotificationLevel @default(INFO)
+  title       String?
+  body        String?
+  contextType String?
+  contextId   String?
+  isRead      Boolean           @default(false)
+  createdAt   DateTime          @default(now())
+  readAt      DateTime?
+  actorUserId String?
+  data        Json?
+  actor       User?             @relation("NotificationActor", fields: [actorUserId], references: [id])
+  user        User              @relation(fields: [userId], references: [id])
+
+  @@index([userId, isRead, createdAt])
+  @@index([contextType, contextId, userId])
+}
+
+model NotificationMute {
+  userId      String
+  contextType String
+  contextId   String
+  until       DateTime?
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@id([userId, contextType, contextId])
+  @@index([userId])
+}
+
+model NotificationPref {
+  userId       String             @id
+  emailEnabled Boolean            @default(true)
+  quietStart   String?
+  quietEnd     String?
+  categories   Json?
+  updatedAt    DateTime           @updatedAt
+  digest       NotificationDigest @default(off)
+  user         User               @relation(fields: [userId], references: [id])
+}
+
+enum CommentKind {
+  TEXT
+  STICKER
 }
 
 enum AccountType {
@@ -268,50 +359,6 @@ enum SavedKind {
   PEOPLE
 }
 
-// --- New ---
-model Project {
-  id          String   @id @default(cuid())
-  ownerUserId String
-  name        String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // 👇 match the relation name above
-  fromListId String?
-  fromList   SavedList? @relation("SeedList", fields: [fromListId], references: [id])
-
-  shootDate DateTime?
-  crewCall  DateTime?
-  shootCall DateTime?
-  details   Json?
-
-  members ProjectMember[]
-
-  @@index([ownerUserId])
-}
-
-model ProjectMember {
-  id        String  @id @default(cuid())
-  projectId String
-  project   Project @relation(fields: [projectId], references: [id])
-
-  profileId    String?
-  profile      Profile? @relation("ProfileMembers", fields: [profileId], references: [id])
-  externalName String?
-  email        String?
-  phone        String?
-
-  department String?
-  role       String?
-  callTime   DateTime?
-  confirmed  Boolean   @default(false)
-  notes      String?
-  createdAt  DateTime  @default(now())
-
-  @@index([projectId])
-  @@index([profileId])
-}
-
 enum NotificationLevel {
   INFO
   ACTIONABLE
@@ -321,36 +368,14 @@ enum NotificationLevel {
 enum NotificationType {
   MESSAGE
   MENTION
-  FOLLOW
-  COMMENT
-  LIKE
   CALLSHEET_PUBLISHED
   CALLTIME_CHANGED
   SCHEDULE_UPDATED
   PROJECT
   SYSTEM
-}
-
-model Notification {
-  id          String            @id @default(cuid())
-  userId      String
-  type        NotificationType
-  level       NotificationLevel @default(INFO)
-  title       String?
-  body        String?
-  isRead      Boolean           @default(false)
-  readAt      DateTime?
-  createdAt   DateTime          @default(now())
-  contextType String?
-  contextId   String?
-  actorUserId String?
-  data        Json?
-
-  user  User  @relation(fields: [userId], references: [id])
-  actor User? @relation("NotificationActor", fields: [actorUserId], references: [id])
-
-  @@index([userId, isRead, createdAt])
-  @@index([contextType, contextId, userId])
+  FOLLOW
+  COMMENT
+  LIKE
 }
 
 enum NotificationDigest {
@@ -359,26 +384,56 @@ enum NotificationDigest {
   weekly
 }
 
-model NotificationMute {
-  userId      String
-  contextType String
-  contextId   String
-  until       DateTime?
+model Callsheet {
+  id        String    @id @default(cuid())
+  projectId String
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  day       Int?
+  title     String?
+  date      DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
 
-  user User @relation(fields: [userId], references: [id])
 
-  @@id([userId, contextType, contextId])
+// --- Dashboards -----------------------------
+
+model Dashboard {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String
+  slug      String   @unique
+  coverUrl  String?  // optional cover photo
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members    DashboardMember[]
+  callsheets DashboardCallsheet[]
+
   @@index([userId])
 }
 
-model NotificationPref {
-  userId       String             @id
-  emailEnabled Boolean            @default(true)
-  digest       NotificationDigest @default(off)
-  quietStart   String?
-  quietEnd     String?
-  categories   Json?
-  updatedAt    DateTime           @updatedAt
+model DashboardMember {
+  id          String    @id @default(cuid())
+  dashboardId String
+  userId      String
+  role        String    @default("OWNER")
+  createdAt   DateTime  @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id])
+
+  @@unique([dashboardId, userId])
+  @@index([userId])
+}
+
+// Link dashboards to existing callsheets (your existing "Project" model)
+model DashboardCallsheet {
+  dashboardId String
+  projectId   String
+  linkedAt    DateTime @default(now())
+
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id])
+  project   Project   @relation("ProjectDashboardLinks", fields: [projectId], references: [id])
+
+  @@id([dashboardId, projectId])
 }

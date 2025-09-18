@@ -1,8 +1,5 @@
 'use client'
 
-import Link from 'next/link'
-import LikeButton from '@/app/components/LikeButton'
-
 type Post = {
   id: string
   caption?: string | null
@@ -10,6 +7,9 @@ type Post = {
   myLike?: boolean
   author?: { handle?: string; displayName?: string | null }
   assets?: { url: string; altText?: string | null }[]
+  // NEW optional fields
+  location?: string | null
+  externalUrl?: string | null
 }
 
 export default function PostCard({
@@ -23,7 +23,7 @@ export default function PostCard({
 
   return (
     <div
-      className="relative group border rounded-xl overflow-hidden bg-white cursor-pointer"
+      className="relative group rounded-xl overflow-hidden bg-white cursor-pointer shadow-[0_6px_18px_rgba(0,0,0,0.06)] hover:shadow-[0_10px_28px_rgba(0,0,0,0.10)] transition-shadow"
       role="button"
       tabIndex={0}
       onClick={() => onOpen?.(post.id)}
@@ -44,25 +44,6 @@ export default function PostCard({
       ) : (
         <div className="w-full aspect-square bg-gray-100" />
       )}
-
-      {/*<div className="p-2 flex items-center justify-between">
-        <Link
-          href={post.author?.handle ? `/u/${post.author.handle}` : '#'}
-          className="text-sm font-medium"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {post.author?.displayName ?? '—'}
-        </Link> */}
-
-        {/* stop clicks from bubbling so the card doesn't open when liking */}
-       {/*} <div onClick={(e) => e.stopPropagation()}>
-          <LikeButton
-            postId={post.id}
-            initialLiked={post.myLike}
-            initialCount={post.likeCount ?? 0}
-          />
-        </div>
-      </div> */}
     </div>
   )
 }

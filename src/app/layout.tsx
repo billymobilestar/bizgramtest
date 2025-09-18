@@ -4,6 +4,7 @@ import { ClerkProvider } from '@clerk/nextjs'
 import Providers from './providers'
 import AppHeader from '@/components/AppHeader'   // <- top-level import
 import Sidebar from '@/components/Sidebar'
+import OnboardingGate from './OnboardingGate'
 
 export const metadata: Metadata = {
   title: 'BizGram',
@@ -16,6 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <html lang="en">
         <body className="min-h-dvh bg-white dark:bg-black">
           <Providers>
+            <OnboardingGate />
             {/* Mobile top bar only */}
             <div className="sm:hidden">
               <AppHeader />

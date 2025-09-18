@@ -24,6 +24,8 @@ export default function CreatePostPage() {
   const [files, setFiles] = useState<File[]>([])
   const [caption, setCaption] = useState('')
   const [tags, setTags] = useState('')
+  const [location, setLocation] = useState('')
+  const [externalUrl, setExternalUrl] = useState('')
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<string>('')
 
@@ -33,6 +35,8 @@ export default function CreatePostPage() {
       setFiles([])
       setCaption('')
       setTags('')
+      setLocation('')
+      setExternalUrl('')
       setBusy(false)
       setProgress('')
       alert('Post created!')
@@ -106,10 +110,16 @@ export default function CreatePostPage() {
         .map((t) => t.trim())
         .filter(Boolean)
 
+      const normalizedUrl = externalUrl.trim()
+        ? (/^https?:\/\//i.test(externalUrl.trim()) ? externalUrl.trim() : `https://${externalUrl.trim()}`)
+        : ''
+
       await createPost({
         caption: caption || null,
         tags: tagList,
         files: uploaded,
+        location: location.trim() || null,
+        externalUrl: normalizedUrl || null,
       })
     } catch (err: any) {
       console.error(err)
@@ -121,12 +131,71 @@ export default function CreatePostPage() {
 
   return (
     <main>
-
-
-        <SignedIn>
-        {/* your form is unchanged */}
+      <SignedIn>
         <div className="p-6 max-w-3xl mx-auto">
-          {/* … existing UI … */}
+          <h1 className="text-2xl font-semibold mb-4">Create Post</h1>
+
+          <div className="space-y-4">
+            <textarea
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="Write a caption…"
+              className="w-full border rounded p-3"
+              maxLength={1000}
+            />
+
+            <input
+              value={tags}
+              onChange={(e) => setTags(e.target.value)}
+              placeholder="tags, comma,separated"
+              className="w-full border rounded p-3"
+            />
+
+            {/* NEW: optional location */}
+            <input
+              value={location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder="Location (optional, e.g., Vancouver, BC)"
+              maxLength={160}
+              className="w-full border rounded p-3"
+            />
+
+            {/* NEW: optional external link */}
+            <input
+              value={externalUrl}
+              onChange={(e) => setExternalUrl(e.target.value)}
+              inputMode="url"
+              placeholder="External link (optional, e.g., https://example.com)"
+              className="w-full border rounded p-3"
+            />
+            <p className="text-xs text-neutral-600 -mt-2">If you omit <code>https://</code>, we’ll add it for you.</p>
+
+            <input type="file" accept="image/*" multiple onChange={onPick} />
+
+            {files.length > 0 && (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                {files.map((f, i) => (
+                  <div key={i} className="border rounded p-2 text-xs">
+                    <div className="h-32 overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={URL.createObjectURL(f)} alt="preview" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="mt-1 truncate">{f.name}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <button
+              disabled={busy || isPending}
+              onClick={onCreate}
+              className="px-4 py-2 rounded bg-black text-white disabled:opacity-50"
+            >
+              {busy ? progress || 'Working…' : isPending ? 'Creating…' : 'Create Post'}
+            </button>
+
+            {busy && progress && <p className="text-sm text-gray-600">{progress}</p>}
+          </div>
         </div>
       </SignedIn>
 
@@ -138,49 +207,6 @@ export default function CreatePostPage() {
           </SignInButton>
         </div>
       </SignedOut>
-      <div className="p-6 max-w-3xl mx-auto">
-        <h1 className="text-2xl font-semibold mb-4">Create Post</h1>
-
-        <div className="space-y-4">
-          <textarea
-            value={caption}
-            onChange={(e) => setCaption(e.target.value)}
-            placeholder="Write a caption…"
-            className="w-full border rounded p-3"
-            maxLength={1000}
-          />
-          <input
-            value={tags}
-            onChange={(e) => setTags(e.target.value)}
-            placeholder="tags, comma,separated"
-            className="w-full border rounded p-3"
-          />
-          <input type="file" accept="image/*" multiple onChange={onPick} />
-
-          {files.length > 0 && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-              {files.map((f, i) => (
-                <div key={i} className="border rounded p-2 text-xs">
-                  <div className="h-32 overflow-hidden">
-                    <img src={URL.createObjectURL(f)} alt="preview" className="w-full h-full object-cover" />
-                  </div>
-                  <div className="mt-1 truncate">{f.name}</div>
-                </div>
-              ))}
-            </div>
-          )}
-
-          <button
-            disabled={busy || isPending}
-            onClick={onCreate}
-            className="px-4 py-2 rounded bg-black text-white disabled:opacity-50"
-          >
-            {busy ? progress || 'Working…' : isPending ? 'Creating…' : 'Create Post'}
-          </button>
-
-          {busy && progress && <p className="text-sm text-gray-600">{progress}</p>}
-        </div>
-      </div>
     </main>
   )
 }
