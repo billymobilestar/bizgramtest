@@ -17,6 +17,7 @@ import { projectsRouter } from './projects'
 import { notificationRouter } from './notification'
 import { callsheetRouter } from '../../app/projects/callsheet'
 import { dashboardRouter } from './dashboard'
+import { opinionsRouter } from './opinions'
 
 
 export const appRouter = router({
@@ -34,6 +35,7 @@ export const appRouter = router({
   notification: notificationRouter,
   callsheet: callsheetRouter,
 dashboard: dashboardRouter,
+opinions: opinionsRouter,
   post: postRouter,
   social: socialRouter,
   feed: feedRouter,

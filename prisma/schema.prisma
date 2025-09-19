@@ -254,20 +254,20 @@ model Comment {
 }
 
 model Project {
-  id          String          @id @default(cuid())
-  ownerUserId String
-  name        String
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  fromListId  String?
-  shootDate   DateTime?
-  crewCall    DateTime?
-  shootCall   DateTime?
-  details     Json?
-  fromList    SavedList?      @relation("SeedList", fields: [fromListId], references: [id])
-  members     ProjectMember[]
-  callsheets  Callsheet[]
-  coverUrl    String?
+  id             String               @id @default(cuid())
+  ownerUserId    String
+  name           String
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  fromListId     String?
+  shootDate      DateTime?
+  crewCall       DateTime?
+  shootCall      DateTime?
+  details        Json?
+  fromList       SavedList?           @relation("SeedList", fields: [fromListId], references: [id])
+  members        ProjectMember[]
+  callsheets     Callsheet[]
+  coverUrl       String?
   // Back-relation to DashboardCallsheet
   dashboardLinks DashboardCallsheet[] @relation("ProjectDashboardLinks")
 
@@ -395,7 +395,6 @@ model Callsheet {
   updatedAt DateTime  @updatedAt
 }
 
-
 // --- Dashboards -----------------------------
 
 model Dashboard {
@@ -403,7 +402,7 @@ model Dashboard {
   userId    String
   name      String
   slug      String   @unique
-  coverUrl  String?  // optional cover photo
+  coverUrl  String? // optional cover photo
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -414,11 +413,11 @@ model Dashboard {
 }
 
 model DashboardMember {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   dashboardId String
   userId      String
-  role        String    @default("OWNER")
-  createdAt   DateTime  @default(now())
+  role        String   @default("OWNER")
+  createdAt   DateTime @default(now())
 
   dashboard Dashboard @relation(fields: [dashboardId], references: [id])
 
@@ -436,4 +435,99 @@ model DashboardCallsheet {
   project   Project   @relation("ProjectDashboardLinks", fields: [projectId], references: [id])
 
   @@id([dashboardId, projectId])
+}
+
+model Opinion {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Kept server-side only, never exposed via API responses:
+  authorUserId String // who posted (for moderation/abuse handling)
+
+  // Content
+  kind        OpinionKind // 'TEXT' | 'PHOTO' | 'POLL'
+  text        String? // for TEXT or optional caption
+  // If PHOTO: use an assets table or reuse your PostAsset model pattern:
+  assets      OpinionAsset[]
+  // If POLL
+  pollOptions OpinionPollOption[]
+  pollEndsAt  DateTime?
+
+  // Engagement
+  reactions OpinionReaction[]
+  comments  OpinionComment[]
+  votes     OpinionVote[] // for polls
+
+  // Aggregates for ranking
+  reactionCount Int   @default(0)
+  commentCount  Int   @default(0)
+  voteCount     Int   @default(0)
+  scoreHot      Float @default(0) // long-lived engagement score
+  scoreTrend    Float @default(0) // short-term momentum score
+
+  // Moderation
+  removed Boolean @default(false)
+  reason  String?
+}
+
+enum OpinionKind {
+  TEXT
+  PHOTO
+  POLL
+}
+
+model OpinionAsset {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  opinionId String
+  url       String
+  altText   String?
+  order     Int      @default(0)
+  opinion   Opinion  @relation(fields: [opinionId], references: [id], onDelete: Cascade)
+}
+
+model OpinionPollOption {
+  id          String        @id @default(cuid())
+  createdAt   DateTime      @default(now())
+  opinionId   String
+  label       String
+  count       Int           @default(0) // denormalized for speed
+  opinion     Opinion       @relation(fields: [opinionId], references: [id], onDelete: Cascade)
+  OpinionVote OpinionVote[]
+}
+
+model OpinionVote {
+  id          String             @id @default(cuid())
+  createdAt   DateTime           @default(now())
+  opinionId   String
+  optionId    String?
+  // Keep it anonymous publicly, but prevent duplicate voting:
+  voterUserId String // or hash(IP+day) if you need anon even from admins
+  opinion     Opinion            @relation(fields: [opinionId], references: [id], onDelete: Cascade)
+  option      OpinionPollOption? @relation(fields: [optionId], references: [id])
+
+  @@unique([opinionId, voterUserId]) // 1 vote per user
+}
+
+model OpinionReaction {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  opinionId String
+  userId    String // for dedup; not exposed
+  kind      String // 'like' | 'heart' etc (start with 'like')
+  opinion   Opinion  @relation(fields: [opinionId], references: [id], onDelete: Cascade)
+
+  @@unique([opinionId, userId, kind])
+}
+
+model OpinionComment {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  opinionId    String
+  text         String
+  // For moderation and self-delete you may keep authorUserId but never expose
+  authorUserId String
+  removed      Boolean  @default(false)
+  opinion      Opinion  @relation(fields: [opinionId], references: [id], onDelete: Cascade)
 }

@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/nextjs'
 import {
-  Home, Compass, Smile, MessageSquare, Folder, Bookmark, Bell, Plus, User2,
+  Home, Compass, Smile, Lollipop, MessageSquare, Folder, Bookmark, Bell, Plus, User2,
 } from 'lucide-react'
 
 function cls(...xs: Array<string | false | null | undefined>) {
@@ -54,6 +54,8 @@ export default function Sidebar() {
     { href: '/search', label: 'Discover', icon: Compass },
     { href: '/directory', label: 'Directory', icon: Smile }, // or /directory if you prefer
     { href: '/dashboards', label: 'Dashboard', icon: Smile }, // or /directory if you prefer
+        { href: '/opinions', label: 'Opinions', icon: Lollipop }, // or /directory if you prefer
+
     { href: '/messages', label: 'Messages', icon: MessageSquare },
     //{ href: '/projects', label: 'Projects', icon: Folder },
     { href: '/saved', label: 'Saved', icon: Bookmark },
